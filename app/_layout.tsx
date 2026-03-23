@@ -7,17 +7,23 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 
+// importa serviços extras
+import { initDatabase } from "../src/database/database";
+import { runDailyTickOncePerDay } from "../src/services/dailyTick";
+import { scheduleDailyNotificationAt18 } from "../src/services/notificationService";
+import { ensureOmwDbReady } from "../src/database/omwDb";
+
+import { startStudyTimeTracking, stopStudyTimeTracking } from "../src/services/studyTimeTracker";
+import { saveTodayLearnedCount } from "../src/services/progressService";
+
 export {
-  // Catch any errors thrown by the Layout component.
   ErrorBoundary,
 } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
   initialRouteName: '(tabs)',
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -25,7 +31,6 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -35,6 +40,29 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  // efeito para inicialização da base e notificações
+  useEffect(() => {
+    (async () => {
+      initDatabase();
+      await ensureOmwDbReady();
+
+      // 1) roda tick diário
+      await runDailyTickOncePerDay();
+
+      // 2) agenda notificação diária para 18h
+      await scheduleDailyNotificationAt18();
+
+      saveTodayLearnedCount();
+      startStudyTimeTracking();
+    })();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopStudyTimeTracking();
+    };
+  }, []);
 
   if (!loaded) {
     return null;
