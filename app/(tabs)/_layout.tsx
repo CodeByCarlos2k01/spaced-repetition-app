@@ -1,71 +1,74 @@
-import React from 'react';
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import React from "react";
+import { Drawer } from "expo-router/drawer";
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+export default function DrawerLayout() {
   return (
-    <Tabs
+    <Drawer
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
-      <Tabs.Screen
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: "#1f1f1f",
+        },
+        headerTintColor: "#f1f1f1",
+        drawerStyle: {
+          backgroundColor: "#262626", 
+        },
+        drawerActiveBackgroundColor: "#2e2e2e", 
+        drawerInactiveBackgroundColor: "#262626", 
+        drawerActiveTintColor: "#f1f1f1", 
+        drawerInactiveTintColor: "#c8c8c8",
+        sceneStyle: {
+          backgroundColor: "#1f1f1f", 
+        },
+      }}
+    >
+      <Drawer.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          title: "Página Inicial",
+          drawerLabel: "Página Inicial",
         }}
       />
-      <Tabs.Screen
-        name="two"
+
+      <Drawer.Screen
+        name="continuar-leitura"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          title: "Minha Biblioteca",
+          drawerLabel: "Minha Biblioteca",
         }}
       />
-    </Tabs>
+
+      <Drawer.Screen
+        name="minhas-palavras"
+        options={{
+          title: "Minhas Palavras",
+          drawerLabel: "Minhas Palavras",
+        }}
+      />
+
+      <Drawer.Screen
+        name="evolucao"
+        options={{
+          title: "Evolução",
+          drawerLabel: "Evolução",
+        }}
+      />
+
+      <Drawer.Screen
+        name="manual"
+        options={{
+          title: "Manual",
+          drawerLabel: "Manual de Uso",
+        }}
+      />
+
+      <Drawer.Screen
+        name="sobre"
+        options={{
+          title: "Sobre",
+          drawerLabel: "Sobre",
+        }}
+      />
+    </Drawer>
   );
 }
