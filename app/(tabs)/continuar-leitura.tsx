@@ -1,18 +1,23 @@
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
   Alert,
   FlatList,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getSelectedLanguage } from "../../src/repository/appStateRepository";
+import { consumeCameFromReading } from "../../src/services/navigationStateService";
+import { promptUserToReviewIfNeeded } from "../../src/services/quizPromptService";
 import {
-  listSavedReadings,
   deleteSavedReading,
-  updateSavedReadingTitle,
+  listSavedReadings,
   SavedReading,
+  updateSavedReadingTitle,
 } from "../../src/services/savedReadingsService";
 
 function formatarData(timestamp: number) {
@@ -26,19 +31,32 @@ function formatarData(timestamp: number) {
 }
 
 export default function ContinuarLeituraScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [screenKey, setScreenKey] = useState(0);
   const [items, setItems] = useState<SavedReading[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
 
   async function carregar() {
-    const list = await listSavedReadings();
+    const language = getSelectedLanguage();
+    const list = await listSavedReadings(language);
     setItems(list);
   }
 
   useFocusEffect(
     useCallback(() => {
       void carregar();
+    }, [screenKey])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeCameFromReading()) {
+        setTimeout(() => {
+          promptUserToReviewIfNeeded();
+        }, 300);
+      }
     }, [])
   );
 
@@ -57,10 +75,11 @@ export default function ContinuarLeituraScreen() {
   async function salvarEdicao() {
     if (!editingId) return;
 
-    await updateSavedReadingTitle(editingId, editingTitle);
+    const language = getSelectedLanguage();
+    await updateSavedReadingTitle(editingId, editingTitle, language);
     setEditingId(null);
     setEditingTitle("");
-    await carregar();
+    setScreenKey((prev) => prev + 1);
   }
 
   async function excluir(item: SavedReading) {
@@ -70,8 +89,9 @@ export default function ContinuarLeituraScreen() {
         text: "Excluir",
         style: "destructive",
         onPress: async () => {
-          await deleteSavedReading(item.id);
-          await carregar();
+          const language = getSelectedLanguage();
+          await deleteSavedReading(item.id, language);
+          setScreenKey((prev) => prev + 1);
         },
       },
     ]);
@@ -81,21 +101,83 @@ export default function ContinuarLeituraScreen() {
     <View
       style={{
         flex: 1,
-        paddingHorizontal: 16,
-        backgroundColor: "#1f1f1f",
+        backgroundColor: "#0A0E17",
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
       }}
     >
+      <Stack.Screen
+        options={{
+          title: "Continuar Leitura",
+          headerStyle: {
+            backgroundColor: "#0A0E17",
+          },
+          headerTintColor: "#FFFFFF",
+          headerTitleStyle: {
+            fontWeight: "700",
+            fontSize: 20,
+          },
+          headerShadowVisible: false,
+        }}
+      />
+
       <FlatList
+        key={screenKey}
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{
-          paddingTop: 16,
-          paddingBottom: 20,
+          paddingHorizontal: 24,
+          paddingTop: 20,
+          paddingBottom: 30,
+          flexGrow: 1,
         }}
         ListEmptyComponent={
-          <Text style={{ color: "#c8c8c8" }}>
-            Nenhuma leitura iniciada ainda.
-          </Text>
+          <View
+            style={{
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 60,
+            }}
+          >
+            <View
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: "#1E2432",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 20,
+                borderWidth: 1,
+                borderColor: "#2A3142",
+              }}
+            >
+              <Ionicons name="book-outline" size={36} color="#475569" />
+            </View>
+            <Text
+              style={{
+                color: "#94A3B8",
+                fontSize: 16,
+                textAlign: "center",
+                fontWeight: "500",
+                marginBottom: 8,
+              }}
+            >
+              Nenhuma leitura iniciada
+            </Text>
+            <Text
+              style={{
+                color: "#475569",
+                fontSize: 14,
+                textAlign: "center",
+              }}
+            >
+              Volte para a tela inicial e comece uma nova leitura
+            </Text>
+          </View>
         }
         renderItem={({ item }) => {
           const emEdicao = editingId === item.id;
@@ -103,12 +185,12 @@ export default function ContinuarLeituraScreen() {
           return (
             <View
               style={{
+                backgroundColor: "#1E2432",
+                borderRadius: 16,
                 borderWidth: 1,
-                borderColor: "#ffffff",
-                borderRadius: 12,
-                padding: 12,
-                marginBottom: 12,
-                backgroundColor: "#2e2e2e",
+                borderColor: "#2A3142",
+                padding: 18,
+                marginBottom: 16,
               }}
             >
               {emEdicao ? (
@@ -117,17 +199,19 @@ export default function ContinuarLeituraScreen() {
                     value={editingTitle}
                     onChangeText={setEditingTitle}
                     placeholder="Digite o título"
-                    placeholderTextColor="#9a9a9a"
-                    textAlign="center"
+                    placeholderTextColor="#475569"
+                    autoFocus
                     style={{
+                      backgroundColor: "#0A0E17",
                       borderWidth: 1,
-                      borderColor: "#3a3a3a",
+                      borderColor: "#3B82F6",
                       borderRadius: 10,
-                      paddingHorizontal: 10,
-                      paddingVertical: 10,
-                      marginBottom: 10,
-                      backgroundColor: "#2a2a2a",
-                      color: "#f1f1f1",
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      marginBottom: 16,
+                      color: "#FFFFFF",
+                      fontSize: 16,
+                      fontWeight: "500",
                     }}
                   />
 
@@ -141,13 +225,22 @@ export default function ContinuarLeituraScreen() {
                     <TouchableOpacity
                       onPress={salvarEdicao}
                       style={{
-                        backgroundColor: "#3a3a3a",
-                        paddingVertical: 10,
-                        paddingHorizontal: 14,
+                        flex: 1,
+                        backgroundColor: "#3B82F6",
+                        paddingVertical: 12,
                         borderRadius: 10,
+                        alignItems: "center",
                       }}
                     >
-                      <Text style={{ color: "#fff" }}>Salvar</Text>
+                      <Text
+                        style={{
+                          color: "#FFFFFF",
+                          fontWeight: "600",
+                          fontSize: 14,
+                        }}
+                      >
+                        Salvar
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -156,85 +249,164 @@ export default function ContinuarLeituraScreen() {
                         setEditingTitle("");
                       }}
                       style={{
-                        backgroundColor: "#444444",
-                        paddingVertical: 10,
-                        paddingHorizontal: 14,
+                        flex: 1,
+                        backgroundColor: "#2A3142",
+                        paddingVertical: 12,
                         borderRadius: 10,
+                        alignItems: "center",
+                        borderWidth: 1,
+                        borderColor: "#3A4252",
                       }}
                     >
-                      <Text style={{ color: "#ffffff" }}>Cancelar</Text>
+                      <Text
+                        style={{
+                          color: "#CBD5E1",
+                          fontWeight: "500",
+                          fontSize: 14,
+                        }}
+                      >
+                        Cancelar
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </>
               ) : (
                 <>
-                  <Text
+                  <View
                     style={{
-                      fontSize: 22,
-                      fontWeight: "700",
-                      marginBottom: 12,
-                      color: "#f1f1f1",
-                      textAlign: "center",
+                      flexDirection: "row",
+                      alignItems: "flex-start",
+                      marginBottom: 16,
                     }}
                   >
-                    {item.title}
-                  </Text>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
+                        backgroundColor: "#2A3142",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 12,
+                      }}
+                    >
+                      <Ionicons name="document-text-outline" size={20} color="#3B82F6" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontWeight: "700",
+                          color: "#FFFFFF",
+                          marginBottom: 4,
+                        }}
+                        numberOfLines={2}
+                      >
+                        {item.title}
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <Ionicons name="calendar-outline" size={12} color="#64748B" />
+                        <Text
+                          style={{
+                            color: "#64748B",
+                            fontSize: 12,
+                          }}
+                        >
+                          {formatarData(item.createdAt)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
 
                   <View
                     style={{
                       flexDirection: "row",
-                      gap: 10,
-                      justifyContent: "center",
-                      flexWrap: "wrap",
+                      gap: 8,
+                      justifyContent: "flex-end",
                     }}
                   >
                     <TouchableOpacity
                       onPress={() => abrir(item)}
                       style={{
-                        backgroundColor: "#4CAF50",
+                        backgroundColor: "#3B82F6",
                         paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        borderRadius: 10,
+                        paddingHorizontal: 16,
+                        borderRadius: 8,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
                       }}
                     >
-                      <Text style={{ color: "#fff" }}>Abrir</Text>
+                      <Ionicons name="play-outline" size={16} color="#FFFFFF" />
+                      <Text
+                        style={{
+                          color: "#FFFFFF",
+                          fontWeight: "600",
+                          fontSize: 13,
+                        }}
+                      >
+                        Abrir
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       onPress={() => iniciarEdicao(item)}
                       style={{
-                        backgroundColor: "#111",
+                        backgroundColor: "#2A3142",
                         paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        borderRadius: 10,
+                        paddingHorizontal: 16,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: "#3A4252",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
                       }}
                     >
-                      <Text style={{ color: "#fff" }}>Editar título</Text>
+                      <Ionicons name="pencil-outline" size={16} color="#94A3B8" />
+                      <Text
+                        style={{
+                          color: "#CBD5E1",
+                          fontWeight: "500",
+                          fontSize: 13,
+                        }}
+                      >
+                        Editar
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       onPress={() => excluir(item)}
                       style={{
-                        backgroundColor: "#8f2d2d",
+                        backgroundColor: "#2A1A1A",
                         paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        borderRadius: 10,
+                        paddingHorizontal: 16,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: "#4A2A2A",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
                       }}
                     >
-                      <Text style={{ color: "#fff" }}>Excluir</Text>
+                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                      <Text
+                        style={{
+                          color: "#EF4444",
+                          fontWeight: "500",
+                          fontSize: 13,
+                        }}
+                      >
+                        Excluir
+                      </Text>
                     </TouchableOpacity>
                   </View>
-
-                  <Text
-                    style={{
-                      marginTop: 10,
-                      color: "#b5b5b5",
-                      fontSize: 12,
-                      textAlign: "center",
-                    }}
-                  >
-                    Adicionado em: {formatarData(item.createdAt)}
-                  </Text>
                 </>
               )}
             </View>

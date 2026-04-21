@@ -1,24 +1,27 @@
+import { BackgroundMusicButton } from '@/components/BackgroundMusicButton';
+import { useColorScheme } from '@/components/useColorScheme';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { View } from "react-native";
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/components/useColorScheme';
-
-// importa serviços extras
+import { ensureAudioDbReady } from "../src/database/audioDb";
 import { initDatabase } from "../src/database/database";
 import { runDailyTickOncePerDay } from "../src/services/dailyTick";
-import { scheduleDailyNotificationAt18 } from "../src/services/notificationService";
-import { ensureOmwDbReady } from "../src/database/omwDb";
-
+import { musicPlayer } from "../src/services/musicPlayer";
+import { scheduleSavedDailyNotification } from "../src/services/notificationService";
+import {
+  markDailyQuizPromptShown,
+  saveTodayLearnedCount,
+  shouldShowDailyQuizPrompt,
+} from "../src/services/progressService";
+import { promptUserToReviewIfNeeded } from "../src/services/quizPromptService";
 import { startStudyTimeTracking, stopStudyTimeTracking } from "../src/services/studyTimeTracker";
-import { saveTodayLearnedCount } from "../src/services/progressService";
 
-export {
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -30,45 +33,64 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+  const [audioDbReady, setAudioDbReady] = useState(false);
 
   useEffect(() => {
     if (error) throw error;
   }, [error]);
 
   useEffect(() => {
-    if (loaded) {
+    (async () => {
+      try {
+        await ensureAudioDbReady();
+        setAudioDbReady(true);
+      } catch (e) {
+        console.error("Erro ao preparar audios.db:", e);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (loaded && audioDbReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [loaded, audioDbReady]);
 
-  // efeito para inicialização da base e notificações
   useEffect(() => {
     (async () => {
       initDatabase();
-      await ensureOmwDbReady();
-
-      // 1) roda tick diário
       await runDailyTickOncePerDay();
-
-      // 2) agenda notificação diária para 18h
-      await scheduleDailyNotificationAt18();
-
+      await scheduleSavedDailyNotification();
       saveTodayLearnedCount();
       startStudyTimeTracking();
     })();
   }, []);
 
   useEffect(() => {
+    if (shouldShowDailyQuizPrompt()) {
+      markDailyQuizPromptShown();
+      setTimeout(() => {
+        promptUserToReviewIfNeeded();
+      }, 500);
+    }
+  }, []);
+
+  useEffect(() => {
+    void musicPlayer.start();
+
     return () => {
+      musicPlayer.destroy();
       stopStudyTimeTracking();
     };
   }, []);
 
-  if (!loaded) {
+  if (!loaded || !audioDbReady) {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+      <RootLayoutNav />
+  );
 }
 
 function RootLayoutNav() {
@@ -76,7 +98,15 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerRight: () => (
+            <View style={{ marginRight: 4 }}>
+              <BackgroundMusicButton />
+            </View>
+          ),
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>

@@ -20,14 +20,15 @@ export class WordRepository {
     db.runSync(
       `
       INSERT OR REPLACE INTO words (
-        word, translations_json, status,
+        word, language, translations_json, status,
         learningMultipleChoiceHits, learningTypedHit,
         reviewMultipleChoiceHits, reviewTypedHit,
         interval, easeFactor, nextReview
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         word.word,
+        word.language,
         serializeTranslations(word.translations),
         word.status,
         word.learningMultipleChoiceHits,
@@ -41,10 +42,11 @@ export class WordRepository {
     );
   }
 
-  getAll(): Word[] {
-    const rows = db.getAllSync<any>(`SELECT * FROM words`);
+  getAll(language: string): Word[] {
+    const rows = db.getAllSync<any>(`SELECT * FROM words WHERE language = ?`, [language]);
     return rows.map((r) => ({
       word: r.word,
+      language: r.language,
       translations: parseTranslations(r.translations_json),
       status: r.status,
 
@@ -64,18 +66,19 @@ export class WordRepository {
     this.add(word);
   }
 
-  getDueReviews(limit = 50): Word[] {
+  getDueReviews(limit = 50, language: string): Word[] {
     const rows = db.getAllSync<any>(
       `
       SELECT * FROM words
-      WHERE status = 'review' AND nextReview <= 0
+      WHERE status = 'review' AND language = ? AND nextReview <= 0
       ORDER BY nextReview ASC
       LIMIT ?
       `,
-      [limit]
+      [language, limit]
     );
     return rows.map((r) => ({
       word: r.word,
+      language: r.language,
       translations: parseTranslations(r.translations_json),
       status: r.status,
       learningMultipleChoiceHits: r.learningMultipleChoiceHits ?? 0,
@@ -88,10 +91,11 @@ export class WordRepository {
     }));
   }
 
-  getForgotten(): Word[] {
-    const rows = db.getAllSync<any>(`SELECT * FROM words WHERE status = 'forgotten'`);
+  getForgotten(language: string): Word[] {
+    const rows = db.getAllSync<any>(`SELECT * FROM words WHERE status = 'forgotten' AND language = ?`, [language]);
     return rows.map((r) => ({
       word: r.word,
+      language: r.language,
       translations: parseTranslations(r.translations_json),
       status: r.status,
       learningMultipleChoiceHits: r.learningMultipleChoiceHits ?? 0,
@@ -104,10 +108,32 @@ export class WordRepository {
     }));
   }
 
-  getLearning(): Word[] {
-    const rows = db.getAllSync<any>(`SELECT * FROM words WHERE status = 'learning'`);
+  getLearning(language: string): Word[] {
+    const rows = db.getAllSync<any>(`SELECT * FROM words WHERE status = 'learning' AND language = ?`, [language]);
     return rows.map((r) => ({
       word: r.word,
+      language: r.language,
+      translations: parseTranslations(r.translations_json),
+      status: r.status,
+      learningMultipleChoiceHits: r.learningMultipleChoiceHits ?? 0,
+      learningTypedHit: r.learningTypedHit ?? 0,
+      reviewMultipleChoiceHits: r.reviewMultipleChoiceHits ?? 0,
+      reviewTypedHit: r.reviewTypedHit ?? 0,
+      interval: Number(r.interval ?? 1),
+      easeFactor: Number(r.easeFactor ?? 1.75),
+      nextReview: Number(r.nextReview ?? 0),
+    }));
+  }
+
+  getReviewedWords(language: string): Word[] {
+    const rows = db.getAllSync<any>(
+      `SELECT * FROM words WHERE status = 'review' AND language = ? ORDER BY word COLLATE NOCASE ASC`,
+      [language]
+    );
+
+    return rows.map((r) => ({
+      word: r.word,
+      language: r.language,
       translations: parseTranslations(r.translations_json),
       status: r.status,
       learningMultipleChoiceHits: r.learningMultipleChoiceHits ?? 0,

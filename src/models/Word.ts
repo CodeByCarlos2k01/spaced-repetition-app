@@ -1,7 +1,9 @@
+import { AppLanguage } from "../constants/languages";
 export type WordStatus = "learning" | "review" | "forgotten";
 
-export interface Word {
+export type Word = {
   word: string;
+  language: AppLanguage;
   translations: string[];
 
   status: WordStatus;
@@ -15,11 +17,12 @@ export interface Word {
   interval: number;
   easeFactor: number;
   nextReview: number;
-}
+};
 
-export function createWord(word: string, translations: string[]): Word {
+export function createWord(word: string, language: AppLanguage, translations: string[]): Word {
   return {
     word,
+    language,
     translations,
     status: "learning",
     learningMultipleChoiceHits: 0,

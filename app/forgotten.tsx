@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
-import { View, Text, Button } from "react-native";
-import { Word } from "../src/models/Word";
-import { WordRepository } from "../src/repository/wordRepository";
-import { getForgotten } from "../src/engine/scheduler";
+import { Button, Text, View } from "react-native";
 import { completeForgotten } from "../src/engine/reviewEngine";
+import { getForgotten } from "../src/engine/scheduler";
+import { Word } from "../src/models/Word";
+import { getSelectedLanguage } from "../src/repository/appStateRepository";
+import { WordRepository } from "../src/repository/wordRepository";
 
 export default function ForgottenScreen() {
   const [words, setWords] = useState<Word[]>([]);
   const repo = new WordRepository();
 
   useEffect(() => {
-    const all = repo.getAll();
+    const language = getSelectedLanguage();
+    const all = repo.getAll(language);
     const forgotten = getForgotten(all);
     setWords(forgotten);
   }, []);

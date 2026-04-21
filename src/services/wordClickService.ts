@@ -1,13 +1,15 @@
-import { WordRepository } from "../repository/wordRepository";
-import { createWord } from "../models/Word";
+import { AppLanguage } from "../constants/languages";
 import { setForgotten } from "../engine/reviewEngine";
+import { createWord } from "../models/Word";
+import { WordRepository } from "../repository/wordRepository";
 
 export function registrarCliqueEmPalavra(
   repo: WordRepository,
   palavra: string,
-  traducoes: string[]
+  traducoes: string[],
+  language: AppLanguage
 ) {
-  const all = repo.getAll();
+  const all = repo.getAll(language);
   const existing = all.find((w) => w.word.toLowerCase() === palavra.toLowerCase());
 
   if (existing && existing.status === "review") {
@@ -26,7 +28,7 @@ export function registrarCliqueEmPalavra(
     return { action: "existing" as const, word: existing };
   }
 
-  const w = createWord(palavra, traducoes ?? []);
+  const w = createWord(palavra, language, traducoes ?? []);
   repo.add(w);
   return { action: "added_learning" as const, word: w };
 }

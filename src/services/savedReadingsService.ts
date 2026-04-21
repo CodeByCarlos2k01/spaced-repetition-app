@@ -1,17 +1,22 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
+import { AppLanguage } from "../constants/languages";
 
-const STORAGE_KEY = "saved_readings_v1";
 const READINGS_DIR = `${FileSystem.documentDirectory}readings/`;
 
 export type SavedReading = {
   id: string;
+  language: AppLanguage;
   url: string;
   title: string;
   customTitle: boolean;
   fileUri: string;
   createdAt: number;
 };
+
+function getStorageKey(language: AppLanguage) {
+  return `saved_readings_v1_${language}`;
+}
 
 function normalizeUrl(raw: string) {
   const value = raw.trim();
@@ -32,8 +37,8 @@ async function ensureDir() {
   }
 }
 
-async function readAll(): Promise<SavedReading[]> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+async function readAll(language: AppLanguage): Promise<SavedReading[]> {
+  const raw = await AsyncStorage.getItem(getStorageKey(language));
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -43,38 +48,51 @@ async function readAll(): Promise<SavedReading[]> {
   }
 }
 
-async function writeAll(items: SavedReading[]) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+async function writeAll(language: AppLanguage, items: SavedReading[]) {
+  await AsyncStorage.setItem(getStorageKey(language), JSON.stringify(items));
 }
 
 function renumberUntitled(items: SavedReading[]) {
   const ordered = [...items].sort((a, b) => a.createdAt - b.createdAt);
 
-  let untitledIndex = 1;
+  const titleById: Record<string, string> = {};
 
-  for (const item of ordered) {
+  for (let i = 0; i < ordered.length; i++) {
+    const item = ordered[i];
+    const contentNumber = i + 1;
+
     if (!item.customTitle) {
-      item.title = `Conteúdo ${untitledIndex}`;
-      untitledIndex++;
+      titleById[item.id] = `Conteúdo ${contentNumber}`;
     }
   }
 
-  return ordered;
+  return items.map((item) =>
+    !item.customTitle && titleById[item.id]
+      ? {
+          ...item,
+          title: titleById[item.id],
+        }
+      : item
+  );
 }
 
-export async function listSavedReadings() {
-  const items = await readAll();
-  return [...items].sort((a, b) => a.createdAt - b.createdAt);
+export async function listSavedReadings(language: AppLanguage) {
+  const items = await readAll(language);
+  return [...items].sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export async function getSavedReadingById(id: string) {
-  const items = await readAll();
+export async function getSavedReadingById(id: string, language: AppLanguage) {
+  const items = await readAll(language);
   return items.find((item) => item.id === id) ?? null;
 }
 
-export async function saveReadingFromUrl(rawUrl: string) {
+export async function saveReadingFromUrl(
+  rawUrl: string, 
+  language: AppLanguage, 
+  customTitle: string | undefined = undefined
+) {
   const url = normalizeUrl(rawUrl);
-  const items = await readAll();
+  const items = await readAll(language);
 
   const existing = items.find(
     (item) => normalizeUrl(item.url) === url
@@ -104,26 +122,26 @@ export async function saveReadingFromUrl(rawUrl: string) {
     encoding: FileSystem.EncodingType.UTF8,
   });
 
-  const nextUntitledCount =
-    items.filter((item) => !item.customTitle).length + 1;
+  const nextUntitledCount = items.length + 1;
 
   const created: SavedReading = {
     id,
+    language,
     url,
-    title: `Conteúdo ${nextUntitledCount}`,
-    customTitle: false,
+    title: customTitle === undefined ? `Conteúdo ${nextUntitledCount}` : customTitle.trim(),
+    customTitle: true,
     fileUri,
     createdAt: Date.now(),
   };
 
   const next = [...items, created];
-  await writeAll(renumberUntitled(next));
+  await writeAll(language, renumberUntitled(next));
 
   return created;
 }
 
-export async function updateSavedReadingTitle(id: string, title: string) {
-  const items = await readAll();
+export async function updateSavedReadingTitle(id: string, title: string, language: AppLanguage) {
+  const items = await readAll(language);
 
   const next = items.map((item) =>
     item.id === id
@@ -135,11 +153,11 @@ export async function updateSavedReadingTitle(id: string, title: string) {
       : item
   );
 
-  await writeAll(next);
+  await writeAll(language, next);
 }
 
-export async function deleteSavedReading(id: string) {
-  const items = await readAll();
+export async function deleteSavedReading(id: string, language: AppLanguage) {
+  const items = await readAll(language);
   const target = items.find((item) => item.id === id);
 
   if (target) {
@@ -149,5 +167,5 @@ export async function deleteSavedReading(id: string) {
   }
 
   const filtered = items.filter((item) => item.id !== id);
-  await writeAll(renumberUntitled(filtered));
+  await writeAll(language, renumberUntitled(filtered));
 }
