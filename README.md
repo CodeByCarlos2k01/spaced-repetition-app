@@ -4,13 +4,13 @@
 
 ---
 
-## 📖 Sobre
+## Sobre
 
 O PolyGlota transforma a leitura de textos reais em uma experiência ativa de aprendizado. Em vez de depender de listas soltas de palavras, o app une **exposição contextual** com **revisão inteligente**, ajudando você a consolidar vocabulário de forma natural e duradoura.
 
 ---
 
-## 🚀 Fluxo do App
+## Fluxo do App
 
 1. **Leia** — Abra textos ou páginas da web diretamente no app  
 2. **Toque** — Selecione palavras desconhecidas para ver traduções instantâneas  
@@ -20,7 +20,7 @@ O PolyGlota transforma a leitura de textos reais em uma experiência ativa de ap
 
 ---
 
-## 🌍 Idiomas Suportados
+## Idiomas Suportados
 
 | Idioma   | Status        |
 |----------|---------------|
@@ -32,17 +32,17 @@ O PolyGlota transforma a leitura de textos reais em uma experiência ativa de ap
 
 ---
 
-## 🛠 Stack Tecnológica
+## Stack Tecnológica
 
-### ⚛️ Core
+### Core
 `React Native` • `Expo` • `TypeScript`
 
-### 💾 Persistência
+### Persistência
 `SQLite` • `AsyncStorage` • `expo-file-system`
 
 ---
 
-## ⚙️ Como Executar
+## Como Executar
 
 ```bash
 git clone <URL_DO_REPOSITORIO>
@@ -52,7 +52,7 @@ npx expo start
 ```
 ---
 
-## 📦 Build Android
+## Build Android
 
 ```bash
 npx expo prebuild --platform android
@@ -63,6 +63,6 @@ APK em: android/app/build/outputs/apk/debug/app-debug.apk
 
 ---
 
-## 👤 Autor
+## Autor
 
 Desenvolvido por Carlos.
